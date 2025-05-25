@@ -3,14 +3,40 @@ const express = require('express')
 const app = express()
 var jwt = require('jsonwebtoken');
 const cors = require('cors');
+const  cookieParsers = require('cookie-parser')
  
 
 require('dotenv').config()
 const port = process.env.PORT || 5000
 // midwere
 
-app.use(cors())
+app.use(cors(
+    {
+        origin: ['http://localhost:5174'],
+        credentials:true
+    }
+))
 app.use(express.json())
+app.use(cookieParsers())
+
+
+
+
+const tokenVarify=(res,req,next)=>{
+    const token = req.cookies?.token
+    console.log(token);
+    if (!token) {
+        return res.status(404).send({massage:'unautoriuse token'})
+    }
+    jwt.verify(token,process.env.ACCESS_TOKEN_SECRET,(err,decoded)=>{
+        if (err) {
+            return res.status(401).send({massage:'unauthorised access'})
+        }
+        req.user=decoded
+        next()
+    })
+    
+}
 
 
 
@@ -40,6 +66,7 @@ async function run() {
 
 
         //   menuCollection
+ 
         app.get('/menus', async (req, res) => {
             const result = await menuCollection.find().toArray()
             res.send(result)
@@ -120,10 +147,16 @@ async function run() {
 // jwt related api
 app.post('/jwt',async(req,res)=>{
  const    user=  req.body
+ console.log(user);
   const token = jwt.sign(user,process.env.ACCESS_TOKEN_SECRET ,{
         expiresIn:'1h'
     })
-    res.send({token})
+    res
+    .cookie('token',token,{
+        httpOnly:true,
+        secure:false
+    })
+    .send({success : true})
 })
 
 
